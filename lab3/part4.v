@@ -28,3 +28,4 @@ module Flipflop(Clk, D, Qs); //ouput Qs only changes at the rising or falling ed
     D_latch master(~Clk, D, Qm);
     D_latch slave(Clk, Qm, Qs);
 endmodule;
+
