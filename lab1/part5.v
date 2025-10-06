@@ -27,8 +27,8 @@ module mux(S, U, V, W, M);
 	output [1:0] M;
 	input [1:0] S, U, V, W;
 	
+	assign M[1] = (~S[1] & ((~S[0] & U[1]) | (S[0] & V[1]) )) | (S[1] & W[1]);
 	assign M[0] = (~S[1] & ((~S[0] & U[0]) | (S[0] & V[0]))) | (S[1] & W[0]);
-	assign M[1] = (~S[1] & ((~S[0] & U[1]) | (S[0]&V[1]) )) | (S[1]&W[1]);
 endmodule
 
 module seg7(X, HEX);
