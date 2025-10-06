@@ -21,6 +21,6 @@ module FA (a, b, Cin, S, Cout);
     input a, b, Cin;
     output S, Cout;
 
-    assign S = a ^ b ^ Cin;
+    assign S = (a ^ b) ^ Cin;
     assign Cout = (a & b) | (b & Cin) | (a & Cin);
 endmodule
