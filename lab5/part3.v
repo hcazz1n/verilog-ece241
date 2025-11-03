@@ -31,6 +31,7 @@ module part3(SW, CLOCK_50, KEY LEDR);
             DOT: if(tick) begin Y_D = GAP; length_enable = 1; end
             DASH: if(dash_count == 2 && tick) Y_D = GAP;
             GAP: if(tick) begin if(lengthOut == 0) Y_D = WAIT; else if(!symbolOut) Y_D = DOT; else Y_D = DASH; end
+            default: begin y_Q = WAIT; Y_D = y_Q; length_enable = 0; length_load = 0; shift_enable = 0; shift_load = 0; end
         endcase
     end
 
