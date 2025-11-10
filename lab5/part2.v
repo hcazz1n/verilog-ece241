@@ -1,12 +1,11 @@
 module part2(SW, KEY, LEDR);
     input [1:0] SW;
     input [0:0] KEY;
-    output reg [0:8] LEDR; //0 = state 0 = A, 1 = state 1 = B, ... , 9 = output
+    output reg [0:9] LEDR; //0 = state 0 = A, 1 = state 1 = B, ... , 9 = output
 
-    wire w, z;
+    wire w;
+   reg z;
     assign w = SW[1];
-    assign LEDR[9] = z;
-
     reg [3:0] y_Q, Y_D;
     parameter A = 4'b0000, B = 4'b0001, C = 4'b0010, D = 4'b0011, E = 4'b0100, F = 4'b0101, G = 4'b0110, H = 4'b0111, I = 4'b1000;
 
@@ -50,6 +49,7 @@ module part2(SW, KEY, LEDR);
         endcase
 
         if(Y_D == E || Y_D == I) LEDR[9] = 1;
+     assign z = LEDR[9];
     end
 
 endmodule;

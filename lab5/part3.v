@@ -1,23 +1,23 @@
-module part3(SW, KEY, CLOCK_50, LEDR);
+module part3(SW, CLOCK_50, KEY, LEDR);
     input [2:0] SW;
     input [1:0] KEY; //1 = start, 0 = sync reset (buttons are active-low)
     input CLOCK_50;
-    output LEDR[0];
+    output reg [9:0] LEDR;
 
-    parameter A = 3'b000, B = 3'b001, C = 3'b010, D = 3'b011, E = 3'b100, F = 3'b101, G = 3'b110, H = 3'b111;
     parameter WAIT = 3'b000, LOAD = 3'b001, DOT = 3'b010, DASH = 3'b011, GAP = 3'b100; //arbitrary values for states
 
     assign MEGA_CLOCK = CLOCK_50;
 
-    reg [2:0] length;
-    reg [3:0] symbols;
+    wire [2:0] length;
+    wire [3:0] symbols;
     reg [2:0] y_Q, Y_D;
-    reg tick;
+    wire tick;
     reg length_enable, length_load;
     reg shift_enable, shift_load;
 
-    reg [2:0] lengthOut;
-    reg symbolOut;
+    wire [1:0] lengthOut;
+    wire symbolOut;
+    reg [1:0] dash_count;
 
     Sync_half_second_cycle HSC(MEGA_CLOCK, KEY[0], tick);
 
@@ -28,38 +28,58 @@ module part3(SW, KEY, CLOCK_50, LEDR);
         case(y_Q)
             WAIT: if(!KEY[1]) begin Y_D = LOAD; length_load = 1; shift_load = 1; end
             LOAD: if(!symbolOut) Y_D = DOT; else Y_D = DASH;
-            DOT: if(posedge MEGA_CLOCK) begin Y_D = GAP; length_enable = 1; end
-            DASH: if(posedge MEGA_CLOCK*3) Y_D = GAP;
-            GAP: if(posedge MEGA_CLOCK) begin if(lengthOut == 0) Y_D = WAIT; else if(!symbolOut) Y_D = DOT; else Y_D = DASH; end
+            DOT: if(tick) begin Y_D = GAP; shift_enable = 1; length_enable = 1; end
+            DASH: if(dash_count == 2 && tick) Y_D = GAP;
+            GAP: if(tick) begin if(lengthOut == 0) Y_D = WAIT; else if(!symbolOut) Y_D = DOT; else Y_D = DASH; end
+            default: begin y_Q = WAIT; Y_D = y_Q; length_enable = 0; length_load = 0; shift_enable = 0; shift_load = 0; end
         endcase
     end
 
-    reg [1:0] dash_count;
-    always @(posedge MEGA_CLOCK) 
+    always @ (posedge KEY[0])
+    begin : state_FFs
+        if(!KEY[0])
+            y_Q <= 3'b0;
+        else
+            y_Q <= Y_D;
+    end
+
+    always @ (posedge MEGA_CLOCK)
+    begin : assign_output
+        if(!KEY[0])
+            LEDR[0] <= 0;
+        else
+        begin
+            case(Y_D)
+                DOT: LEDR[0] <= 1;
+                DASH: LEDR[0] <= 1;
+                default: LEDR[0] <= 0;
+            endcase
+        end
+    end
+
+    always @ (posedge MEGA_CLOCK)
     begin
-        if (!KEY[0]) 
+        if (!KEY[0])
         begin
             y_Q <= WAIT;
             dash_count <= 0;
-        end 
-        else 
+        end
+        else
         begin
             y_Q <= Y_D;
-            if (y_Q == ON_DASH) 
+            if (y_Q == DASH)
             begin
-                if(tick) 
+                if(tick)
                 begin
-                    if (dash_count == 2) 
+                    if (dash_count == 2)
                     begin
                         dash_count <= 0;
-                        length_enable <= 1;  
-                        y_Q <= GAP;
-                    end 
+                    end
                     else
                         dash_count <= dash_count + 1;
                 end
-            end 
-            else 
+            end
+            else
             begin
                 dash_count <= 0;
             end
@@ -68,38 +88,25 @@ module part3(SW, KEY, CLOCK_50, LEDR);
 
     LENGTH_COUNTER LC(length, MEGA_CLOCK, KEY[0], length_enable, length_load, lengthOut);
     SHIFT_REGISTER SR(symbols, MEGA_CLOCK, KEY[0], shift_enable, shift_load, symbolOut);
-
-    always @ (posedge MEGA_CLOCK)
-    begin
-        if(!KEY[0])
-            LEDR <= 0;
-        else
-        begin
-            case(y_Q)
-                DOT: LEDR[0] <= 1;
-                DASH: LEDR[0] <= 1;
-                default: LEDR0 <= 0;
-            endcase
-        end
-    end
-
 endmodule;
 
 module LETTER_SELECTION(SW, length, symbols);
     input [2:0] SW;
-    output [2:0] length; //either 1 2 3 or 4
-    output [3:0] symbols; //read from left->right, 0 = dot, 1 = dash (MAX 4 symbols so need 4 bits)
+    output reg [2:0] length; //either 1 2 3 or 4
+    output reg [3:0] symbols; //read from left->right, 0 = dot, 1 = dash (MAX 4 symbols so need 4 bits)
+
+    parameter A = 3'b000, B = 3'b001, C = 3'b010, D = 3'b011, E = 3'b100, F = 3'b101, G = 3'b110, H = 3'b111;
 
     always @ (*)
     begin
         case(SW)
-            A: begin length = 2; symbols = 2'b01; end
+            A: begin length = 2; symbols = 4'b0100; end
             B: begin length = 4; symbols = 4'b1000; end
             C: begin length = 4; symbols = 4'b1010; end
-            D: begin length = 3; symbols = 3'b100; end
-            E: begin length = 1; symbols = 1'b0; end
+            D: begin length = 3; symbols = 4'b1000; end
+            E: begin length = 1; symbols = 4'b0000; end
             F: begin length = 4; symbols = 4'b0010; end
-            G: begin length = 3; symbols = 3'b110; end
+            G: begin length = 3; symbols = 4'b1100; end
             H: begin length = 4; symbols = 4'b0000; end
             default: begin length = 0; symbols = 4'b0000; end
         endcase
@@ -111,11 +118,11 @@ module LENGTH_COUNTER(lengthIn, Clock, Resetn, enable, load, lengthOut); //enabl
     input Clock, Resetn, load, enable;
     output reg [2:0] lengthOut;
 
-    always @ (posedge Clock) 
+    always @ (posedge Clock)
     begin
         if(!Resetn)
             lengthOut <= 0;
-        else if(enable && length > 0)
+        else if(enable && lengthOut > 0)
             lengthOut <= lengthOut - 1;
         else if(load)
             lengthOut <= lengthIn;
@@ -136,8 +143,8 @@ module SHIFT_REGISTER(symbolsIn, Clock, Resetn, enable, load, symbolOut); //enab
         else if(enable)
             register <= register << 1; //shift all bits 1 to the left (fill in a 0 if not specified on the right if it doens't tell you). want to shift left b/c of how the codes were described
         else if(load)
-            register <= symbolsIn
-        
+            register <= symbolsIn;
+       
         symbolOut = register[3];
     end
 
@@ -156,7 +163,7 @@ module Sync_half_second_cycle(Clock, Resetn, Q); //NOTE: CYCLES ARE MUCH LESS TH
             Q <= 0;
             value <= 0;
         end
-        else if(value != 25000000 - 1) //0 to 24999999 = 25 million cycles
+        else if(value != 4 - 1) //0 to 24999999 = 25 million cycles
         begin
             value <= value + 1;
             Q <= 0;
